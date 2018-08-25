@@ -23,7 +23,7 @@ int main() try
 	colorizer.set_option(RS2_OPTION_COLOR_SCHEME, 2.f);
 
 	// For configuring rgb image
-	rs2::config cfg, cfg2;
+	rs2::config cfg;
 	cfg.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_BGR8, 30);
 	cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 30);
 	
@@ -37,7 +37,8 @@ int main() try
 	rs2AutoExposeStablizer(data, feed);
 
 
-	while (waitKey(1) < 0) {
+	while (waitKey(1) < 0) 
+	{
 		data = feed.wait_for_frames();
 
 		//rs2::frame depth = colorizer(data.get_depth_frame());
