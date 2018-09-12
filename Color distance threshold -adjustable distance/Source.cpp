@@ -6,9 +6,9 @@ using namespace std;
 using namespace cv;
 
 string AUTHOR = "Wei Chih Chern, on ";
-string DATE   = "09/08/2018\n";
-string SDKver = "Intel RealSense v2.15.0 & OpenCV 3.4\n";
-string knownISSUE = "*Current RealSense version align() function isn't well optimized, which causing low fps. Big thanks to the SDK developer and wish the problem can be solved soon!\n";
+string DATE = "09/08/2018\n";
+string SDKver = "Intel RealSense v2.16.0 & OpenCV 3.4\n";
+string knownISSUE = "Remember to build with OPENMP=TRUE to get better performance, however, rs2::align is still expensive.\n";
 string FYI = "*This App is an OpenCV version of the example on RealSense Github which can be found in its Github /example/align.\n";
 
 const int MAX_DISTANCE = 10; // 10 Meters
@@ -100,23 +100,22 @@ void distThreshold_Color(const Mat &depth_frame, const Mat &color, Mat &dst, flo
 	{
 		const uint16_t *depth_ptr = depth_frame.ptr<uint16_t>(i); //1 Channel
 		const uchar    *color_ptr = color.ptr<uchar>(i);          //3 Channels
-		      uchar      *dst_ptr = dst.ptr<uchar>(i);            //3 Channels
+		uchar      *dst_ptr = dst.ptr<uchar>(i);            //3 Channels
 
 		int x = 0;
 
-		for (int j = 0; j < cols; j++, x=j*3)
+		for (int j = 0; j < cols; j++, x = j * 3)
 		{
 			auto dist = depth_scale * depth_ptr[j];
 			if (dist < distThres)
 			{
 				dst_ptr[x] = color_ptr[x];
-				dst_ptr[x+1] = color_ptr[x+1];
-				dst_ptr[x+2] = color_ptr[x+2];
+				dst_ptr[x + 1] = color_ptr[x + 1];
+				dst_ptr[x + 2] = color_ptr[x + 2];
 			}
 		}
 	}
 }
-
 
 void distThreshold_Color(const rs2::depth_frame &depth, const Mat &color, Mat &dst, float depth_scale, float distThres)
 {
@@ -131,13 +130,13 @@ void distThreshold_Color(const rs2::depth_frame &depth, const Mat &color, Mat &d
 	for (int i = 0; i < rows; i++)
 	{
 
-		      uchar *dst_ptr   = dst.ptr<uchar>(i);     
+		uchar *dst_ptr = dst.ptr<uchar>(i);
 		const uchar *color_ptr = color.ptr<uchar>(i);
 		int depth_idx = i*cols;
 		int x;
-		for (int j = 0; j < cols; j++, x = j*3)
+		for (int j = 0; j < cols; j++, x = j * 3)
 		{
-			auto dist = depth_scale * depth_ptr[depth_idx+j];
+			auto dist = depth_scale * depth_ptr[depth_idx + j];
 			if (dist < distThres)
 			{
 				dst_ptr[x] = color_ptr[x];
@@ -147,7 +146,6 @@ void distThreshold_Color(const rs2::depth_frame &depth, const Mat &color, Mat &d
 		}
 	}
 }
-
 
 bool profile_changed(const std::vector<rs2::stream_profile>& current, const std::vector<rs2::stream_profile>& prev)
 {
@@ -168,6 +166,16 @@ void autoExposureWarmUp(rs2::pipeline &feed, int nFrames = 30)
 	for (int i = 0; i < nFrames; i++) feed.wait_for_frames();
 }
 
+void showDepth(rs2::depth_frame depth)
+{
+	rs2::colorizer color;
+	int c = depth.get_width(), r = depth.get_height();
+	rs2::frame colorDepth = depth.apply_filter(color);
+	Mat img = Mat(r, c, CV_8UC3, (void*)colorDepth.get_data());
+	cvtColor(img, img, CV_BGR2GRAY);
+	imshow("Depth", img);
+}
+
 void userManual()
 {
 	cout << "Press key 'A' to increase distance by 0.2 meter.\n";
@@ -178,13 +186,13 @@ void userManual()
 
 void appInfo()
 {
-	cout << "------------------------------------------------------------------------------------------------------------------\n";
+	cout << "-------------------------------------------------------------------------------------------------------------------\n";
 	cout << AUTHOR;
 	cout << DATE;
 	cout << SDKver;
 	cout << knownISSUE;
 	cout << FYI;
-	cout << "------------------------------------------------------------------------------------------------------------------\n\n\n\n";
+	cout << "-------------------------------------------------------------------------------------------------------------------\n\n\n\n";
 }
 
 int main() try
@@ -215,29 +223,31 @@ int main() try
 
 		data = feed.wait_for_frames();
 
-		data = align.process(data); 
+		data = align.process(data);
 		rs2::video_frame color = data.get_color_frame();
-		rs2::depth_frame depth = data.get_depth_frame(); 
+		rs2::depth_frame depth = data.get_depth_frame();
 
 		Mat colorFrame(Size(w, h), CV_8UC3, (void*)color.get_data());
 		Mat depthFrame(Size(w, h), CV_16UC1, (void*)depth.get_data());
 
 		cout << "Current distance threshold value is: " << distance_threshold_value << "\r";
 
-		Mat result; 
+		Mat result;
 		distThreshold_Color(depthFrame, colorFrame, result, depthScale, distance_threshold_value);
 		imshow("Distance threshold result", result);
 
-		char c = waitKey(1);
+		showDepth(depth);
 
-		if      (c == 'a' || c == 'A') distance_threshold_value += 0.2;
+		char c = waitKey(5);
+
+		if (c == 'a' || c == 'A') distance_threshold_value += 0.2;
 		else if (c == 's' || c == 'S') distance_threshold_value -= 0.2;
 		else if (c == 'z' || c == 'Z') distance_threshold_value += 0.1;
 		else if (c == 'q' || c == 'Q') return 0;
 
 		if (distance_threshold_value < 0)            distance_threshold_value = 0.0;
 		if (distance_threshold_value > MAX_DISTANCE) distance_threshold_value = 10.0;
-		
+
 	}
 
 	return EXIT_SUCCESS;
