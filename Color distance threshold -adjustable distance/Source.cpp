@@ -6,7 +6,7 @@ using namespace std;
 using namespace cv;
 
 string AUTHOR = "Wei Chih Chern, on ";
-string DATE = "09/08/2018\n";
+string DATE = "09/12/2018\n";
 string SDKver = "Intel RealSense v2.16.0 & OpenCV 3.4\n";
 string knownISSUE = "Remember to build with OPENMP=TRUE to get better performance, however, rs2::align is still expensive.\n";
 string FYI = "*This App is an OpenCV version of the example on RealSense Github which can be found in its Github /example/align.\n";
@@ -146,6 +146,37 @@ void distThreshold_Color(const rs2::depth_frame &depth, const Mat &color, Mat &d
 		}
 	}
 }
+
+void hysteresisDistThreshold_Color(const rs2::depth_frame &depth, const Mat &color, Mat &dst, float depth_scale, float distThres_high, float distThres_low)
+{
+	const uint16_t *depth_ptr = (uint16_t*)depth.get_data();  //1 Channel
+
+	int cols = depth.get_width();
+	int rows = depth.get_height();
+
+	dst = Mat::zeros(Size(cols, rows), CV_8UC3);
+
+#pragma omp parallel for 
+	for (int i = 0; i < rows; i++)
+	{
+
+		uchar *dst_ptr = dst.ptr<uchar>(i);
+		const uchar *color_ptr = color.ptr<uchar>(i);
+		int depth_idx = i*cols;
+		int x;
+		for (int j = 0; j < cols; j++, x = j * 3)
+		{
+			auto dist = depth_scale * depth_ptr[depth_idx + j];
+			if (dist < distThres_high && dist > distThres_low)
+			{
+				dst_ptr[x] = color_ptr[x];
+				dst_ptr[x + 1] = color_ptr[x + 1];
+				dst_ptr[x + 2] = color_ptr[x + 2];
+			}
+		}
+	}
+}
+
 
 bool profile_changed(const std::vector<rs2::stream_profile>& current, const std::vector<rs2::stream_profile>& prev)
 {
